@@ -1,0 +1,57 @@
+# Home-Assistant-Package für den KI-Server.
+# Ablage: /config/packages/ki_server.yaml
+# Packages aktivieren (einmalig in configuration.yaml):
+#   homeassistant:
+#     packages: !include_dir_named packages
+#
+# Anpassen:
+#   sensor.ki_server_leistung  → Leistungssensor (W) der Mess-Steckdose vor dem KI-Server
+#   AA:BB:CC:DD:EE:FF          → MAC-Adresse des KI-Servers (für Wake-on-LAN)
+#   0.28                       → dein Strompreis in €/kWh
+#   40 W / 30 min              → ab wann „der Server schläft nicht“ gemeldet wird
+
+# Aktiviert die Aktion wake_on_lan.send_magic_packet.
+wake_on_lan:
+
+template:
+  - sensor:
+      - name: "KI-Server Jahreskosten (hochgerechnet)"
+        unique_id: ki_server_jahreskosten
+        unit_of_measurement: "€/a"
+        state_class: measurement
+        icon: mdi:cash-clock
+        availability: "{{ has_value('sensor.ki_server_leistung') }}"
+        # Aktuelle Leistung, hochgerechnet auf 24/7 für ein ganzes Jahr.
+        state: >
+          {% set watt = states('sensor.ki_server_leistung') | float(0) %}
+          {% set preis_kwh = 0.28 %}
+          {{ (watt * 24 * 365 / 1000 * preis_kwh) | round(0) }}
+
+script:
+  ki_server_wecken:
+    alias: "KI-Server wecken"
+    icon: mdi:power
+    sequence:
+      - action: wake_on_lan.send_magic_packet
+        data:
+          mac: "AA:BB:CC:DD:EE:FF"
+
+automation:
+  - id: ki_server_hoher_leerlauf
+    alias: "KI-Server: Hinweis bei hohem Leerlauf"
+    description: >
+      Meldet, wenn der KI-Server lange viel Strom zieht, z. B. weil die GPU nach dem
+      Entladen des Modells nicht in den Sparzustand zurückfällt.
+    triggers:
+      - trigger: numeric_state
+        entity_id: sensor.ki_server_leistung
+        above: 40
+        for: "00:30:00"
+    actions:
+      - action: persistent_notification.create
+        data:
+          title: "KI-Server schläft nicht"
+          message: >
+            Der KI-Server zieht seit 30 Minuten mehr als 40 W
+            (aktuell {{ states('sensor.ki_server_leistung') }} W).
+            Läuft noch eine Anfrage, oder bleibt die GPU im hohen Energiezustand?

@@ -1,0 +1,25 @@
+# /etc/systemd/system/gpu-powerlimit.service
+# Setzt beim Booten ein Power-Limit für NVIDIA-GPUs (nvidia-smi vergisst es sonst).
+# Textgenerierung hängt an der Speicherbandbreite, nicht am Chiptakt:
+# RTX 3090 von 350 W auf 250–275 W kostet laut Messungen unter 3 % Tempo.
+# Unter ~250 W bricht der Takt ein. Erlaubten Bereich prüfen:
+#   nvidia-smi -q -d POWER | grep -i "power limit"
+#
+# Einrichten:
+#   sudo cp gpu-powerlimit.service /etc/systemd/system/
+#   sudo systemctl daemon-reload && sudo systemctl enable --now gpu-powerlimit
+# Mehrere GPUs: je Karte eine Zeile mit `-i <index>` ergänzen.
+
+[Unit]
+Description=NVIDIA GPU Power-Limit (lokale KI)
+After=nvidia-persistenced.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=true
+# Persistence Mode hält den Treiber geladen, damit das Limit bestehen bleibt.
+ExecStart=/usr/bin/nvidia-smi -pm 1
+ExecStart=/usr/bin/nvidia-smi -pl 260
+
+[Install]
+WantedBy=multi-user.target
