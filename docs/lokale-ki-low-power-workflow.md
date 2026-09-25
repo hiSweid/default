@@ -19,6 +19,11 @@
 >    Tokens pro Sekunde. `--n-cpu-moe` passt große MoE-Modelle auf 12–16-GB-Grafikkarten.
 >    Ein GPU-Power-Limit spart ~30 % Strom bei unter 3 % Tempoverlust.
 
+> **Zum direkten Loslegen:** Das [Starter-Kit](lokale-ki-starter-kit/README.md) enthält einen
+> fertigen llama-server-Dienst mit Modell-Presets, einen Power-Limit-Dienst, ein Mess-Skript
+> (tok/s, Watt, Wh pro 1.000 Tokens über Shelly, Tasmota oder Home Assistant) und ein
+> Home-Assistant-Package.
+
 ---
 
 ## Inhalt
@@ -150,6 +155,9 @@ Siehe [Abschnitt 5](#5-tricks). Die Reihenfolge nach Wirkung:
   mitschickt.
 - **Strom:** Zwischenstecker mit Messfunktion, z. B. eine Shelly Plug, die du direkt in
   Home Assistant einbinden kannst. Miss **Leerlauf**, **Last** und **Wh pro 1.000 Tokens**.
+- **Beides in einem Schritt:** Das Skript
+  [`ki-energie-bench.py`](lokale-ki-starter-kit/ki-energie-bench.py) aus dem Starter-Kit schickt
+  Testanfragen, liest dabei die Steckdose aus und schreibt die Ergebnisse als CSV.
 - Trage die Werte in eine Tabelle ein: Modell, Quantisierung, tok/s, Watt (Last), Watt
   (Leerlauf), Qualitätsnote.
 - **Alle 3–6 Monate** neue Modelle testen. Die Modell-Updates im Jahr 2026 (Qwen3.5 → 3.6 → 3.8,
@@ -288,7 +296,12 @@ Smart-Home-Befehle und einfache Fragen abschalten oder reduzieren:
 --chat-template-kwargs '{"reasoning_effort":"low"}'
 # Qwen3.x allgemein:
 --chat-template-kwargs '{"enable_thinking":false}'
+# Modellunabhängig: Token-Budget fürs Nachdenken (0 = sofort beenden, -1 = unbegrenzt)
+--reasoning-budget 0
 ```
+
+Pro Anfrage geht das auch über die API mit `"reasoning_effort": "none"`. So kann ein einziges
+Modell schnelle Befehle *und* gründliche Antworten liefern.
 
 Im HA-Forum waren „Thinking aus“ bzw. „mittleres Reasoning“ die zuverlässigsten Einstellungen
 für den Sprachassistenten.
@@ -299,6 +312,9 @@ für den Sprachassistenten.
 ```bash
 llama-server --models-dir /models --models-max 1 --sleep-idle-seconds 300
 ```
+
+Eine fertige systemd-Einrichtung mit Presets pro Modell (`--models-preset models.ini`) findest du
+im [Starter-Kit](lokale-ki-starter-kit/README.md).
 
 `--sleep-idle-seconds` entlädt das Modell nach Inaktivität aus RAM und VRAM. Achtung: Laut einem
 offenen Issue (#19318) bleibt die **GPU trotzdem teils auf hohem Verbrauch**. Also nachmessen,

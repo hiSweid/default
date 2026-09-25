@@ -1,0 +1,37 @@
+# /etc/systemd/system/llama-server.service
+# llama.cpp im Router-Modus als Dienst. Entlädt Modelle nach 5 min Leerlauf.
+#
+# Einrichten:
+#   sudo useradd --system --home /var/lib/llama-server --create-home llama
+#   sudo mkdir -p /etc/llama-server /var/lib/llama-server/models
+#   sudo cp llama-server.env models.ini /etc/llama-server/
+#   sudo chmod 600 /etc/llama-server/llama-server.env
+#   sudo cp llama-server.service /etc/systemd/system/
+#   sudo systemctl daemon-reload && sudo systemctl enable --now llama-server
+
+[Unit]
+Description=llama.cpp Server (Router-Modus, lokale KI)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=llama
+Group=llama
+# AMD/Intel-GPUs brauchen Zugriff auf /dev/dri und /dev/kfd.
+SupplementaryGroups=video render
+EnvironmentFile=/etc/llama-server/llama-server.env
+# Pfad anpassen, falls llama-server woanders liegt (`which llama-server`).
+ExecStart=/usr/local/bin/llama-server --sleep-idle-seconds 300
+Restart=on-failure
+RestartSec=5
+
+# Härtung: Der Dienst darf nur in sein eigenes Datenverzeichnis schreiben.
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/var/lib/llama-server
+
+[Install]
+WantedBy=multi-user.target
